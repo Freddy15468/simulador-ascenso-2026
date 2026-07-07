@@ -1,10 +1,20 @@
 import { PrismaClient } from "@prisma/client";
 import { aprobarPago, rechazarPago } from "../actions/admin";
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 
 const prisma = new PrismaClient();
 
 export default async function AdminPanel() {
-  // Buscamos todas las suscripciones pendientes y traemos los datos del usuario
+  // 1. Verificamos quién es el usuario
+  const session = await getServerSession();
+
+  // 2. Si no es tu correo exacto, lo expulsamos de vuelta al dashboard
+  if (session?.user?.email !== "freddyperalta376@gmail.com") {
+    redirect("/dashboard");
+  }
+
+  // 3. Si eres tú, cargamos las solicitudes
   const solicitudes = await prisma.subscription.findMany({
     where: { status: "PENDING" },
     include: { user: true },
