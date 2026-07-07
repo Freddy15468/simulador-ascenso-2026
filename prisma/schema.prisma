@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String?
+  password      String         // Añadido para el login
+  role          Role           @default(USER)
+  categoryId    String?        // A qué convocatoria postula
+  category      Category?      @relation(fields: [categoryId], references: [id])
+  subscriptions Subscription[]
+  attempts      Attempt[]
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   // Ej: "Educación Regular - Maestros"
+  areas       Area[]
+  users       User[]
+}
+
+model Area {
+  id            String         @id @default(cuid())
+  name          String         // Ej: "Normativa General"
+  categoryId    String
+  category      Category       @relation(fields: [categoryId], references: [id])
+  questions     Question[]
+  subscriptions Subscription[]
+}
+
+model Question {
+  id            String   @id @default(cuid())
+  text          String   
+  options       Json     
+  correctOption String   
+  feedback      String?  
+  areaId        String
+  area          Area     @relation(fields: [areaId], references: [id])
+}
+
+model Subscription {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  areaId      String?  
+  area        Area?    @relation(fields: [areaId], references: [id])
+  status      Status   @default(PENDING) 
+  receiptUrl  String?  
+  createdAt   DateTime @default(now())
+}
+
+model Attempt {
+  id        String   @id @default(cuid())
+  userId    String
+  score     Int
+  timeSpent Int      
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Status {
+  PENDING
+  APPROVED
+  REJECTED
+}
