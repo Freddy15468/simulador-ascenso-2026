@@ -7,20 +7,26 @@ const prisma = new PrismaClient();
 
 export default async function DashboardPage() {
   const session = await getServerSession();
+  
   if (!session || !session.user?.email) {
     redirect("/login");
   }
 
-  // 1. Buscar al usuario en la base de datos
   const usuario = await prisma.user.findUnique({
     where: { email: session.user.email },
     include: { 
       subscriptions: true,
-      attempts: { orderBy: { createdAt: "desc" } } // Traemos su historial
+      attempts: { orderBy: { createdAt: "desc" } } 
     }
   });
 
   if (!usuario) redirect("/login");
+
+  // NUEVO: Verificamos si alguien más inició sesión con esta cuenta
+  if (usuario.activeSessionId !== (session.user as any).activeSessionId) {
+    // Lo botamos de vuelta al login
+    redirect("/login?error=cuenta_compartida");
+  }
 
   // 2. Verificar si tiene alguna suscripción aprobada
   const esPremium = usuario.subscriptions.some(sub => sub.status === "APPROVED");

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { guardarIntento } from "../../../actions/examen";
 import { obtenerPreguntasExamen } from "../../../actions/preguntas";
 
@@ -16,46 +18,70 @@ type PreguntaBD = {
 };
 
 export default function SimulacroPage() {
+  const router = useRouter();
+  const { data: session, status: statusSesion } = useSession();
+
   const [preguntas, setPreguntas] = useState<PreguntaBD[]>([]);
   const [cargando, setCargando] = useState(true);
 
   const [preguntaActual, setPreguntaActual] = useState(0);
   const [respuestaSeleccionada, setRespuestaSeleccionada] = useState<number | null>(null);
   
-  // NUEVO: Guardamos qué marcó el usuario exactamente
+  // Historial de lo que marcó el usuario exactamente
   const [respuestasUsuario, setRespuestasUsuario] = useState<(string | null)[]>([]);
   
   const [respuestasCorrectas, setRespuestasCorrectas] = useState(0);
   const [tiempoRestante, setTiempoRestante] = useState(TIEMPO_TOTAL); 
   const [examenTerminado, setExamenTerminado] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [errorConstatado, setErrorConstatado] = useState("");
 
+  // Cargar preguntas y verificar seguridad en el montaje
   useEffect(() => {
-    const cargar = async () => {
-      const data = await obtenerPreguntasExamen();
-      setPreguntas(data);
-      setCargando(false);
-    };
-    cargar();
-  }, []);
+    if (statusSesion === "loading") return;
 
+    // Si no hay sesión activa en el navegador, expulsar inmediatamente
+    if (!session) {
+      router.push("/login");
+      return;
+    }
+
+    const cargar = async () => {
+      try {
+        const data = await obtenerPreguntasExamen();
+        setPreguntas(data);
+      } catch (error: any) {
+        console.error("Error al cargar el simulacro:", error);
+        setErrorConstatado("No se pudo cargar el examen. Es posible que tu sesión haya expirado o se haya iniciado en otro dispositivo.");
+      } finally {
+        setCargando(false);
+      }
+    };
+
+    cargar();
+  }, [session, statusSesion, router]);
+
+  // Función para finalizar y guardar la nota en la base de datos
   const finalizarExamen = useCallback(async (correctasFinales: number) => {
     setGuardando(true);
+    setErrorConstatado("");
     const notaFinal = Math.round((correctasFinales / preguntas.length) * 100);
     const tiempoUsado = TIEMPO_TOTAL - tiempoRestante;
     
     try {
       await guardarIntento(notaFinal, tiempoUsado);
-    } catch (error) {
+      setExamenTerminado(true);
+    } catch (error: any) {
       console.error("Error al guardar:", error);
+      setErrorConstatado("Tu sesión ya no es válida porque se abrió esta cuenta en otro dispositivo. Tu nota no pudo ser registrada.");
+    } finally {
+      setGuardando(false);
     }
-    
-    setExamenTerminado(true);
-    setGuardando(false);
   }, [tiempoRestante, preguntas.length]);
 
+  // Manejador del temporizador en cuenta regresiva
   useEffect(() => {
-    if (cargando) return; 
+    if (cargando || errorConstatado) return; 
     
     if (tiempoRestante <= 0 && !examenTerminado) {
       finalizarExamen(respuestasCorrectas);
@@ -65,15 +91,13 @@ export default function SimulacroPage() {
       const timer = setTimeout(() => setTiempoRestante(tiempoRestante - 1), 1000);
       return () => clearTimeout(timer);
     }
-  }, [tiempoRestante, examenTerminado, finalizarExamen, respuestasCorrectas, cargando]);
+  }, [tiempoRestante, examenTerminado, finalizarExamen, respuestasCorrectas, cargando, errorConstatado]);
 
   const manejarSiguiente = async () => {
-    // 1. Guardamos la opción que eligió en su historial personal
     const respuestaStr = respuestaSeleccionada?.toString() ?? null;
     const nuevasRespuestasUsuario = [...respuestasUsuario, respuestaStr];
     setRespuestasUsuario(nuevasRespuestasUsuario);
 
-    // 2. Comprobamos si acertó
     let nuevasCorrectas = respuestasCorrectas;
     if (respuestaStr === preguntas[preguntaActual].correctOption) {
       nuevasCorrectas += 1;
@@ -82,7 +106,6 @@ export default function SimulacroPage() {
 
     setRespuestaSeleccionada(null);
 
-    // 3. Avanzamos o terminamos
     if (preguntaActual + 1 < preguntas.length) {
       setPreguntaActual(preguntaActual + 1);
     } else {
@@ -96,10 +119,33 @@ export default function SimulacroPage() {
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
-  if (cargando) {
+  // Pantalla de carga inicial
+  if (cargando || statusSesion === "loading") {
     return (
       <div className="min-h-screen bg-brand-bg flex items-center justify-center p-4">
         <div className="animate-pulse text-brand-primary font-bold">Cargando simulador...</div>
+      </div>
+    );
+  }
+
+  // Pantalla de Bloqueo por error de Sesión Compartida o Caída de Red
+  if (errorConstatado && !examenTerminado) {
+    return (
+      <div className="min-h-screen bg-brand-bg flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-brand-surface rounded-2xl shadow-xl p-8 border border-brand-border text-center">
+          <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h1 className="text-xl font-bold text-brand-dark mb-3">Acceso Denegado</h1>
+          <p className="text-brand-text text-sm mb-6 leading-relaxed">
+            {errorConstatado}
+          </p>
+          <Link href="/login" className="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-semibold py-3 rounded-xl block text-center transition-colors">
+            Volver al Iniciar Sesión
+          </Link>
+        </div>
       </div>
     );
   }
@@ -111,7 +157,6 @@ export default function SimulacroPage() {
       <div className="min-h-screen bg-brand-bg p-4 pb-10">
         <div className="w-full max-w-md mx-auto">
           
-          {/* Tarjeta Superior de Calificación */}
           <div className="bg-brand-surface rounded-2xl shadow-sm p-8 border border-brand-border text-center mb-6">
             <h1 className="text-2xl font-bold text-brand-dark mb-2">Simulacro Finalizado</h1>
             <div className="inline-block bg-slate-50 border border-brand-border rounded-full p-8 mb-6 mt-4">
@@ -124,7 +169,6 @@ export default function SimulacroPage() {
             </div>
           </div>
 
-          {/* Módulo de Revisión y Retroalimentación */}
           <h2 className="text-lg font-bold text-brand-dark mb-4 px-1">Revisión del Examen</h2>
           <div className="space-y-4 mb-8">
             {preguntas.map((preg, i) => {
@@ -135,7 +179,6 @@ export default function SimulacroPage() {
               return (
                 <div key={preg.id} className={`p-5 rounded-2xl border shadow-sm ${esCorrecta ? 'bg-emerald-50/50 border-emerald-200' : 'bg-red-50/50 border-red-200'}`}>
                   
-                  {/* Etiqueta de Correcto/Incorrecto */}
                   <div className="flex items-center gap-2 mb-3">
                     <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${esCorrecta ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800'}`}>
                       {esCorrecta ? 'Correcto' : 'Incorrecto'}
@@ -162,7 +205,6 @@ export default function SimulacroPage() {
                     )}
                   </div>
 
-                  {/* La justificación legal / Feedback */}
                   {preg.feedback && (
                     <div className="bg-white p-4 rounded-xl text-xs text-slate-600 border border-slate-200 shadow-sm relative overflow-hidden">
                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-primary"></div>
