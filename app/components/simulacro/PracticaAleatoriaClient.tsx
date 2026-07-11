@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -65,12 +65,20 @@ export default function PracticaAleatoriaClient() {
     return Array.isArray(pregunta.options) ? pregunta.options : JSON.parse(pregunta.options as string);
   }
 
+  // Mezclamos el orden de las opciones UNA sola vez por pregunta (no en cada
+  // render), para que la respuesta correcta no siempre caiga en el inciso A.
+  const opcionesActuales = useMemo(() => {
+    const preguntaActual = banco[indice];
+    if (!preguntaActual) return [];
+    return barajar(obtenerOpciones(preguntaActual));
+  }, [indice, banco]);
+
   const confirmarRespuesta = () => {
     if (respuestaSeleccionada === null) return;
     setRespondida(true);
     setTotalRespondidas((prev) => prev + 1);
 
-    const opciones = obtenerOpciones(banco[indice]);
+    const opciones = opcionesActuales;
     const textoElegido = opciones[respuestaSeleccionada];
 
     if (textoElegido === banco[indice].correctOption) {
@@ -117,7 +125,7 @@ export default function PracticaAleatoriaClient() {
   }
 
   const pregunta = banco[indice];
-  const opciones = obtenerOpciones(pregunta);
+  const opciones = opcionesActuales;
 
   return (
     <div className="min-h-screen bg-brand-bg p-4 pb-24 flex flex-col justify-between">

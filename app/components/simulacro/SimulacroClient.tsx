@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -119,8 +119,27 @@ export default function SimulacroClient(props: Props) {
     return Array.isArray(pregunta.options) ? pregunta.options : JSON.parse(pregunta.options as string);
   }
 
+  function barajarLocal<T>(arr: T[]): T[] {
+    const copia = [...arr];
+    for (let i = copia.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copia[i], copia[j]] = [copia[j], copia[i]];
+    }
+    return copia;
+  }
+
+  // Mezclamos el orden de las opciones UNA sola vez por pregunta (no en cada
+  // render), para que la respuesta correcta no siempre caiga en el inciso A.
+  // Este mismo orden mezclado se usa tanto para mostrar los botones como
+  // para interpretar qué texto corresponde al índice que el usuario clickeó.
+  const opcionesActuales = useMemo(() => {
+    const preguntaActualObj = preguntas[preguntaActual];
+    if (!preguntaActualObj) return [];
+    return barajarLocal(obtenerOpciones(preguntaActualObj));
+  }, [preguntaActual, preguntas]);
+
   const manejarSiguiente = async () => {
-    const opciones = obtenerOpciones(preguntas[preguntaActual]);
+    const opciones = opcionesActuales;
     const respuestaTexto = respuestaSeleccionada !== null ? opciones[respuestaSeleccionada] : null;
 
     const nuevasRespuestasUsuario = [...respuestasUsuario, respuestaTexto];
@@ -280,7 +299,7 @@ export default function SimulacroClient(props: Props) {
   }
 
   const pregunta = preguntas[preguntaActual];
-  const opciones = obtenerOpciones(pregunta);
+  const opciones = opcionesActuales;
 
   return (
     <div className="min-h-screen bg-brand-bg p-4 pb-20 flex flex-col justify-between">
