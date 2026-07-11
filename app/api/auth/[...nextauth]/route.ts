@@ -25,6 +25,22 @@ export const authOptions = {
         const pinMatch = await bcrypt.compare(credentials.pin, user.password);
         if (!pinMatch) return null;
 
+        // Los administradores quedan exentos del amarre de dispositivo:
+        // pueden entrar desde cualquier celular, tablet o PC sin restricción.
+        if (user.role === "ADMIN") {
+          const newSessionId = crypto.randomUUID();
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { activeSessionId: newSessionId },
+          });
+          return {
+            id: user.id,
+            name: user.name,
+            role: user.role,
+            activeSessionId: newSessionId,
+          };
+        }
+
         const deviceIdRecibido = credentials.deviceId as string | undefined;
 
         // Sin fingerprint de dispositivo no dejamos pasar: no podríamos
