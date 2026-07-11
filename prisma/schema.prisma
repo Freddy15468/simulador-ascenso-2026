@@ -9,17 +9,20 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(cuid())
-  email         String         @unique
-  name          String?
-  password      String         // Añadido para el login
-  role          Role           @default(USER)
-  categoryId    String?        // A qué convocatoria postula
-  activeSessionId String?        // <--- NUEVO: Para bloquear cuentas compartidas
-  category      Category?      @relation(fields: [categoryId], references: [id])
-  subscriptions Subscription[]
-  attempts      Attempt[]
+  id              String         @id @default(cuid())
+  email           String?        @unique   // opcional ahora
+  cedula          String?        @unique   // NUEVO: identificador de login
+  name            String?
+  password        String         // aquí se guarda el hash del PIN
+  role            Role           @default(USER)
+  categoryId      String?
+  activeSessionId String?
+  deviceId        String?        // NUEVO: fingerprint del dispositivo autorizado
+  category        Category?      @relation(fields: [categoryId], references: [id])
+  subscriptions   Subscription[]
+  attempts        Attempt[]
 }
+
 
 model Category {
   id          String   @id @default(cuid())

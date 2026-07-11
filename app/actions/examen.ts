@@ -1,43 +1,37 @@
 "use server";
 
-import { PrismaClient } from "@prisma/client";
 import { getServerSession } from "next-auth";
+import { authOptions } from "../api/auth/[...nextauth]/route";
+import { prisma } from "../../lib/prisma";
 import { revalidatePath } from "next/cache";
 
-const prisma = new PrismaClient();
-
 export async function guardarIntento(score: number, timeSpent: number) {
-  // 1. Obtenemos la sesión cifrada que viene desde el navegador del usuario
-  const session = await getServerSession();
-  
-  if (!session || !session.user?.email) {
+  const session = await getServerSession(authOptions);
+
+  if (!session || !(session.user as any)?.id) {
     throw new Error("No autorizado: Debes iniciar sesión.");
   }
 
-  // 2. Consultamos el estado en tiempo real del usuario en Supabase
   const usuario = await prisma.user.findUnique({
-    where: { email: session.user.email }
+    where: { id: (session.user as any).id },
   });
 
   if (!usuario) {
     throw new Error("Usuario no encontrado.");
   }
 
-  // 3. LA VALIDACIÓN CRÍTICA (El escudo anti-fraude):
-  // Comparamos el activeSessionId de la base de datos contra el que viene en la sesión actual
+  // Escudo anti-fraude: compara el activeSessionId de la BD contra el de esta sesión
   if (usuario.activeSessionId !== (session.user as any).activeSessionId) {
     throw new Error("Sesión inválida: Se ha detectado un inicio de sesión más reciente en otro dispositivo.");
   }
 
-  // 4. Si la validación pasa, guardamos la nota
   await prisma.attempt.create({
     data: {
       userId: usuario.id,
-      score: score,
-      timeSpent: timeSpent,
-    }
+      score,
+      timeSpent,
+    },
   });
 
-  // 5. Refrescamos el dashboard
   revalidatePath("/dashboard");
 }

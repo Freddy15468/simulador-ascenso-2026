@@ -1,68 +1,115 @@
 "use server";
 
-import { PrismaClient } from "@prisma/client";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../api/auth/[...nextauth]/route";
+import { prisma } from "../../lib/prisma";
 
-const prisma = new PrismaClient();
+const CANTIDAD_EXAMEN_COMPLETO = 100;
 
-export async function obtenerPreguntasExamen() {
-  // Buscamos si ya existen preguntas en la base de datos
-  let preguntas = await prisma.question.findMany();
+async function obtenerUsuarioConCategoria() {
+  const session = await getServerSession(authOptions);
 
-  // Si está vacía, inyectamos la estructura y preguntas automáticamente
-  if (preguntas.length === 0) {
-    console.log("Inyectando preguntas base...");
-    
-    const categoria = await prisma.category.create({
-      data: { name: "Educación Regular - Maestro" }
-    });
-
-    const area = await prisma.area.create({
-      data: { name: "Normativa General", categoryId: categoria.id }
-    });
-
-    await prisma.question.createMany({
-      data: [
-        {
-          text: "¿Cuál es la ley de la Educación en Bolivia que lleva el nombre de 'Avelino Siñani - Elizardo Pérez'?",
-          options: ["Ley 1178", "Ley 004", "Ley 070", "Ley 348"],
-          correctOption: "2",
-          feedback: "La Ley 070, promulgada en 2010, es la Ley de la Educación.",
-          areaId: area.id
-        },
-        {
-          text: "Según la Ley 1178 (SAFCO), ¿qué tipo de responsabilidad se determina cuando la acción u omisión causa daño económico al Estado?",
-          options: ["Responsabilidad Administrativa", "Responsabilidad Ejecutiva", "Responsabilidad Civil", "Responsabilidad Penal"],
-          correctOption: "2",
-          feedback: "La responsabilidad es civil cuando se causa daño al Estado valuable en dinero.",
-          areaId: area.id
-        },
-        {
-          text: "¿Cuál de los siguientes NO es un subsistema del Sistema Educativo Plurinacional según la Ley 070?",
-          options: ["Educación Regular", "Educación Alternativa y Especial", "Educación Superior de Formación Profesional", "Educación Militar y Policial"],
-          correctOption: "3",
-          feedback: "Los subsistemas son: Regular, Alternativa y Especial, y Superior de Formación Profesional.",
-          areaId: area.id
-        },
-        {
-          text: "En el marco de la Constitución Política del Estado, la educación es:",
-          options: ["Un servicio privado con supervisión estatal", "Un derecho fundamental, función suprema y primera responsabilidad financiera del Estado", "Una responsabilidad exclusiva de las gobernaciones", "Un derecho opcional"],
-          correctOption: "1",
-          feedback: "Art. 77 de la CPE: La educación constituye una función suprema y primera responsabilidad financiera del Estado.",
-          areaId: area.id
-        },
-        {
-          text: "Según el Reglamento del Escalafón Nacional, ¿cuál es el requisito indispensable para ascender de categoría?",
-          options: ["Ser director del establecimiento", "Tener maestría obligatoria", "Aprobar el examen de ascenso y tener el tiempo de servicio requerido", "Militar en un partido político"],
-          correctOption: "2",
-          feedback: "El ascenso requiere cumplir la antigüedad en la categoría actual y aprobar la evaluación.",
-          areaId: area.id
-        }
-      ]
-    });
-
-    // Volvemos a consultar la base de datos ahora que tiene información
-    preguntas = await prisma.question.findMany();
+  if (!session || !(session.user as any)?.id) {
+    throw new Error("No autorizado: Debes iniciar sesión.");
   }
 
-  return preguntas;
+  const usuario = await prisma.user.findUnique({
+    where: { id: (session.user as any).id },
+  });
+
+  if (!usuario) {
+    throw new Error("Usuario no encontrado.");
+  }
+
+  if (!usuario.categoryId) {
+    throw new Error("Tu cuenta no tiene una categoría/convocatoria asignada. Contacta a soporte.");
+  }
+
+  return usuario;
+}
+
+function barajar<T>(arr: T[]): T[] {
+  const copia = [...arr];
+  for (let i = copia.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copia[i], copia[j]] = [copia[j], copia[i]];
+  }
+  return copia;
+}
+
+/**
+ * Trae las preguntas de UN área puntual (ej. "Ley 004").
+ * Verifica que el área pertenezca a la categoría del usuario (evita que
+ * alguien acceda a preguntas de otra convocatoria adivinando el areaId).
+ * Si no se pasa `cantidad`, devuelve TODAS las preguntas del área, barajadas.
+ */
+export async function obtenerPreguntasPorArea(areaId: string, cantidad?: number) {
+  const usuario = await obtenerUsuarioConCategoria();
+
+  const area = await prisma.area.findUnique({ where: { id: areaId } });
+
+  if (!area || area.categoryId !== usuario.categoryId) {
+    throw new Error("Esta área no existe o no pertenece a tu categoría.");
+  }
+
+  const preguntas = await prisma.question.findMany({ where: { areaId } });
+
+  if (preguntas.length === 0) {
+    throw new Error(`El área "${area.name}" todavía no tiene preguntas cargadas.`);
+  }
+
+  const barajadas = barajar(preguntas);
+  return cantidad ? barajadas.slice(0, cantidad) : barajadas;
+}
+
+/**
+ * Trae hasta 100 preguntas al azar combinando TODAS las áreas de la
+ * categoría del usuario. Es el "examen completo" que simula el examen real.
+ */
+export async function obtenerPreguntasExamenCompleto() {
+  const usuario = await obtenerUsuarioConCategoria();
+
+  const preguntas = await prisma.question.findMany({
+    where: { area: { categoryId: usuario.categoryId! } },
+  });
+
+  if (preguntas.length === 0) {
+    throw new Error("Todavía no hay preguntas cargadas para tu categoría.");
+  }
+
+  return barajar(preguntas).slice(0, CANTIDAD_EXAMEN_COMPLETO);
+}
+
+/**
+ * Trae TODO el banco de preguntas de la categoría del usuario, mezclado.
+ * Se usa para la práctica libre: una pregunta al azar a la vez, sin elegir área.
+ */
+export async function obtenerBancoDePreguntas() {
+  const usuario = await obtenerUsuarioConCategoria();
+
+  const preguntas = await prisma.question.findMany({
+    where: { area: { categoryId: usuario.categoryId! } },
+  });
+
+  if (preguntas.length === 0) {
+    throw new Error("Todavía no hay preguntas cargadas para tu categoría.");
+  }
+
+  return barajar(preguntas);
+}
+
+/**
+ * Lista las áreas de la categoría del usuario, con el conteo de preguntas
+ * de cada una. Se usa para pintar las tarjetas del dashboard.
+ */
+export async function obtenerAreasDelUsuario() {
+  const usuario = await obtenerUsuarioConCategoria();
+
+  const areas = await prisma.area.findMany({
+    where: { categoryId: usuario.categoryId! },
+    include: { _count: { select: { questions: true } } },
+    orderBy: { name: "asc" },
+  });
+
+  return areas;
 }

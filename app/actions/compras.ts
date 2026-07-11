@@ -1,36 +1,43 @@
 "use server";
 
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../../lib/prisma";
+import { authOptions } from "../api/auth/[...nextauth]/route";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
-const prisma = new PrismaClient();
-
 export async function registrarPago(data: { reference: string; isImage: boolean }) {
-  const session = await getServerSession();
+  const session: any = await getServerSession(authOptions);
 
-  if (!session || !session.user?.email) {
+  if (!session || !(session.user as any)?.id) {
     throw new Error("No autorizado");
   }
 
-  // Buscamos el ID del usuario actual mediante su correo de sesión
   const usuario = await prisma.user.findUnique({
-    where: { email: session.user.email }
+    where: { id: (session.user as any).id },
+    include: { subscriptions: true }
   });
 
   if (!usuario) throw new Error("Usuario no encontrado");
 
-  // Creamos la suscripción en la base de datos
+  // Evitamos duplicados: ya premium o ya tiene un comprobante en revisión
+  const yaEsPremium = usuario.subscriptions.some(s => s.status === "APPROVED");
+  const tienePendiente = usuario.subscriptions.some(s => s.status === "PENDING");
+
+  if (yaEsPremium) {
+    throw new Error("Tu cuenta ya está activa. No necesitas volver a pagar.");
+  }
+  if (tienePendiente) {
+    throw new Error("Ya tienes un comprobante en revisión. Espera la validación.");
+  }
+
   await prisma.subscription.create({
     data: {
       userId: usuario.id,
       status: "PENDING",
-      // Si es una imagen guardamos el Base64, si es texto guardamos el número
-      receiptUrl: data.reference, 
-      areaId: null // Null significa que está adquiriendo el paquete completo
+      receiptUrl: data.reference,
+      areaId: null
     }
   });
 
-  // Redirigimos al dashboard con un estado de éxito
   redirect("/dashboard");
 }
