@@ -47,7 +47,7 @@ export default async function DashboardPage() {
         <div className="mb-8 mt-6 flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-brand-dark tracking-tight">
-              Hola, {usuario.name?.split(" ")[0]} 👋
+              Hola, {usuario.name?.split(" ")[0]} 
             </h1>
             <p className="text-brand-text text-sm mt-1 font-medium">Plan de Estudio - Gestión 2026</p>
           </div>
@@ -70,7 +70,7 @@ export default async function DashboardPage() {
         {/* Tarjeta de Estado Dinámica */}
         {esPremium ? (
           <div className="bg-emerald-600 rounded-2xl p-6 text-white shadow-lg shadow-emerald-600/20 mb-8">
-            <h2 className="text-lg font-semibold mb-1">Cuenta Premium Activa 🚀</h2>
+            <h2 className="text-lg font-semibold mb-1">Cuenta Premium Activa </h2>
             <p className="text-brand-bg/95 text-sm leading-relaxed">
               Tienes acceso ilimitado a todos los simulacros y normativas de la convocatoria. ¡Mucho éxito!
             </p>
