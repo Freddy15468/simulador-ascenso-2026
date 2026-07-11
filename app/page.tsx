@@ -1,7 +1,8 @@
-export default function Home() {
-  return (
-    <main className="p-10">
-      <h1 className="text-2xl font-bold">Simulador de Ascenso 2026</h1>
-    </main>
-  );
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "./api/auth/[...nextauth]/route";
+
+export default async function Home() {
+  const session = await getServerSession(authOptions);
+  redirect(session ? "/dashboard" : "/login");
 }

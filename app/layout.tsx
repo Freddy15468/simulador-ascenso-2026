@@ -4,6 +4,7 @@ import "./globals.css";
 import Providers from "./components/providers/Providers";
 import SoloMovilGuard from "./components/SoloMovilGuard";
 import RegistrarServiceWorker from "./components/RegistrarServiceWorker";
+import InstallPrompt from "./components/InstallPrompt";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -53,6 +54,7 @@ export default function RootLayout({
           <SoloMovilGuard>{children}</SoloMovilGuard>
         </Providers>
         <RegistrarServiceWorker />
+        <InstallPrompt />
       </body>
     </html>
   );
