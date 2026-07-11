@@ -75,13 +75,23 @@ export default function ComprarPage() {
 
         <div className="bg-brand-surface border border-brand-border rounded-2xl p-6 shadow-sm mb-6">
           <h3 className="font-bold text-brand-dark mb-4 text-center">Escanea para pagar</h3>
-          <div className="flex justify-center mb-5">
+          <div className="flex justify-center mb-3">
             <div className="w-48 h-48 bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center p-4">
-            
               <img src="/qr-pago.png" alt="QR para pagar" className="w-48 h-48 object-contain" />
               <span className="text-xs text-slate-500 text-center font-medium">Tu QR Simple de 50 Bs.</span>
             </div>
           </div>
+
+          <a
+            href="/qr-pago.png"
+            download="QR-pago-simulador.png"
+            className="flex items-center justify-center gap-2 text-xs font-bold text-brand-primary hover:text-brand-primaryHover bg-brand-primary/10 hover:bg-brand-primary/20 py-2.5 rounded-xl transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Descargar QR
+          </a>
         </div>
 
         <div className="flex bg-slate-200 p-1 rounded-xl mb-6">
