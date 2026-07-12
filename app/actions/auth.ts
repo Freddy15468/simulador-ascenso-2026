@@ -2,24 +2,25 @@
 
 import { prisma } from "../../lib/prisma";
 import bcrypt from "bcryptjs";
-import { redirect } from "next/navigation";
 
-export async function registrarUsuario(formData: FormData) {
+type ResultadoRegistro = { ok: true } | { ok: false; error: string };
+
+export async function registrarUsuario(formData: FormData): Promise<ResultadoRegistro> {
   const nombre = formData.get("nombre") as string;
   const cedula = formData.get("cedula") as string;
   const pin = formData.get("pin") as string;
   const categoryId = formData.get("categoria") as string;
 
   if (!categoryId) {
-    throw new Error("Debes seleccionar una convocatoria.");
+    return { ok: false, error: "Debes seleccionar una convocatoria." };
   }
 
   if (!cedula || cedula.trim().length < 5) {
-    throw new Error("Ingresa un número de cédula válido.");
+    return { ok: false, error: "Ingresa un número de cédula válido." };
   }
 
   if (!/^\d{4,6}$/.test(pin)) {
-    throw new Error("El PIN debe tener entre 4 y 6 dígitos numéricos.");
+    return { ok: false, error: "El PIN debe tener entre 4 y 6 dígitos numéricos." };
   }
 
   const hashedPin = await bcrypt.hash(pin, 10);
@@ -29,14 +30,23 @@ export async function registrarUsuario(formData: FormData) {
       data: {
         name: nombre,
         cedula: cedula.trim(),
-        password: hashedPin, // aquí se guarda el hash del PIN
+        password: hashedPin,
         categoryId: categoryId,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al registrar:", error);
-    throw new Error("No se pudo crear la cuenta. Es posible que esa cédula ya esté registrada.");
+
+    // P2002 = violación de restricción única de Prisma (la cédula ya existe)
+    if (error?.code === "P2002") {
+      return {
+        ok: false,
+        error: "Esa cédula ya está registrada. Si ya tienes una cuenta, inicia sesión en su lugar.",
+      };
+    }
+
+    return { ok: false, error: "No se pudo crear la cuenta. Intenta de nuevo en unos minutos." };
   }
 
-  redirect("/login");
+  return { ok: true };
 }
