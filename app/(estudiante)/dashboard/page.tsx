@@ -49,7 +49,7 @@ export default async function DashboardPage() {
             <h1 className="text-2xl font-bold text-brand-dark tracking-tight">
               Hola, {usuario.name?.split(" ")[0]} 
             </h1>
-            <p className="text-brand-text text-sm mt-1 font-medium">Plan de Estudio - Gestión 2026</p>
+            <p className="text-brand-text text-sm mt-1 font-medium">Gestión 2026</p>
           </div>
           <CerrarSesionBoton />
         </div>
@@ -106,7 +106,7 @@ export default async function DashboardPage() {
           >
             <h3 className="font-bold text-lg text-brand-dark mb-1.5">Práctica Libre</h3>
             <p className="text-brand-text text-xs mb-4 leading-relaxed">
-              Preguntas al azar de todo el banco ({totalPreguntas} preguntas), una por una, con la
+              Preguntas al azar de todo el banco de preguntas, una por una, con la
               respuesta correcta al instante. Sin tiempo, sin nota — solo para repasar.
             </p>
             {esPremium ? (
@@ -151,11 +151,7 @@ export default async function DashboardPage() {
         {/* Lista de Áreas reales (solo Simulacro por área; la práctica ya es libre arriba) */}
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-brand-dark">Simulacro por Área</h3>
-          {totalPreguntas > 0 && (
-            <span className="text-xs font-semibold text-brand-text bg-slate-100 px-2.5 py-1 rounded-md">
-              {totalPreguntas} preguntas en total
-            </span>
-          )}
+          
         </div>
 
         {areas.length === 0 ? (
@@ -173,9 +169,7 @@ export default async function DashboardPage() {
               >
                 <div className="flex items-start justify-between">
                   <h4 className="font-semibold text-brand-dark text-base">{area.name}</h4>
-                  <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md whitespace-nowrap ml-2">
-                    {area._count.questions} preguntas
-                  </span>
+                  
                 </div>
 
                 {esPremium ? (
