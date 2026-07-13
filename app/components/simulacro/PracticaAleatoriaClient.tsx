@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { obtenerBancoDePreguntas } from "../../actions/preguntas";
+import { obtenerBancoDePreguntas, obtenerPreguntasPorArea } from "../../actions/preguntas";
 
 type PreguntaBD = {
   id: string;
@@ -23,7 +23,7 @@ function barajar<T>(arr: T[]): T[] {
   return copia;
 }
 
-export default function PracticaAleatoriaClient() {
+export default function PracticaAleatoriaClient({ areaId }: { areaId?: string }) {
   const router = useRouter();
   const { data: session, status: statusSesion } = useSession();
 
@@ -48,7 +48,7 @@ export default function PracticaAleatoriaClient() {
 
     const cargar = async () => {
       try {
-        const data = await obtenerBancoDePreguntas();
+        const data = areaId ? await obtenerPreguntasPorArea(areaId) : await obtenerBancoDePreguntas();
         setBanco(data);
       } catch (error: any) {
         console.error("Error al cargar la práctica:", error);
@@ -59,7 +59,7 @@ export default function PracticaAleatoriaClient() {
     };
 
     cargar();
-  }, [session, statusSesion, router]);
+  }, [session, statusSesion, router, areaId]);
 
   function obtenerOpciones(pregunta: PreguntaBD): string[] {
     return Array.isArray(pregunta.options) ? pregunta.options : JSON.parse(pregunta.options as string);

@@ -29,8 +29,17 @@ export default async function DashboardPage() {
   const esPremium = usuario.subscriptions.some((sub) => sub.status === "APPROVED");
   const tienePagoPendiente = usuario.subscriptions.some((sub) => sub.status === "PENDING");
 
-  // Áreas reales de la categoría del usuario, con conteo de preguntas
-  const areas = usuario.categoryId
+  // El ADMIN ve TODAS las áreas de TODAS las categorías (para poder revisar
+  // y probar cualquier convocatoria). Un usuario normal solo ve las de su
+  // propia categoría.
+  const esAdmin = usuario.role === "ADMIN";
+
+  const areas = esAdmin
+    ? await prisma.area.findMany({
+        include: { _count: { select: { questions: true } }, category: true },
+        orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
+      })
+    : usuario.categoryId
     ? await prisma.area.findMany({
         where: { categoryId: usuario.categoryId },
         include: { _count: { select: { questions: true } } },
@@ -39,6 +48,19 @@ export default async function DashboardPage() {
     : [];
 
   const totalPreguntas = areas.reduce((acc, a) => acc + a._count.questions, 0);
+
+  // Si es admin, agrupamos las áreas por categoría para mostrarlas con
+  // encabezados; si no, todas van en un solo grupo sin encabezado.
+  const gruposDeAreas: { categoria: string | null; areas: typeof areas }[] = esAdmin
+    ? Object.values(
+        areas.reduce((acc: Record<string, { categoria: string; areas: typeof areas }>, area: any) => {
+          const nombreCategoria = area.category?.name ?? "Sin categoría";
+          if (!acc[nombreCategoria]) acc[nombreCategoria] = { categoria: nombreCategoria, areas: [] };
+          acc[nombreCategoria].areas.push(area);
+          return acc;
+        }, {})
+      )
+    : [{ categoria: null, areas }];
 
   return (
     <div className="min-h-screen bg-brand-bg p-4 pb-20">
@@ -106,7 +128,7 @@ export default async function DashboardPage() {
           >
             <h3 className="font-bold text-lg text-brand-dark mb-1.5">Práctica Libre</h3>
             <p className="text-brand-text text-xs mb-4 leading-relaxed">
-              Preguntas al azar de todo el banco de preguntas, una por una, con la
+              Preguntas al azar de todo el banco depreguntas, una por una, con la
               respuesta correcta al instante. Sin tiempo, sin nota — solo para repasar.
             </p>
             {esPremium ? (
@@ -148,10 +170,10 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Lista de Áreas reales (solo Simulacro por área; la práctica ya es libre arriba) */}
+        {/* Lista de Áreas reales: Simulacro completo Y práctica pregunta por pregunta, por área */}
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-brand-dark">Simulacro por Área</h3>
-          
+          <h3 className="text-lg font-bold text-brand-dark">{esAdmin ? "Todas las Áreas" : "Módulos por Área"}</h3>
+        
         </div>
 
         {areas.length === 0 ? (
@@ -159,31 +181,50 @@ export default async function DashboardPage() {
             Todavía no hay áreas de estudio cargadas para tu categoría. Vuelve pronto.
           </div>
         ) : (
-          <div className="space-y-4">
-            {areas.map((area) => (
-              <div
-                key={area.id}
-                className={`bg-brand-surface border border-brand-border rounded-2xl p-5 shadow-sm relative overflow-hidden ${
-                  !esPremium && "opacity-60"
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <h4 className="font-semibold text-brand-dark text-base">{area.name}</h4>
-                  
-                </div>
-
-                {esPremium ? (
-                  <Link
-                    href={`/simulacro/${area.id}`}
-                    className="mt-4 bg-brand-primary hover:bg-brand-primaryHover text-white text-xs font-bold px-4 py-2 rounded-xl inline-block transition-colors"
-                  >
-                    Iniciar Simulacro
-                  </Link>
-                ) : (
-                  <div className="mt-4 text-xs font-bold text-slate-500 bg-slate-100 inline-flex items-center px-2.5 py-1 rounded-md">
-                    Bloqueado
-                  </div>
+          <div className="space-y-6">
+            {gruposDeAreas.map((grupo) => (
+              <div key={grupo.categoria ?? "unica"}>
+                {esAdmin && (
+                  <h4 className="text-xs font-bold text-brand-text uppercase tracking-wider mb-3 px-1">
+                    {grupo.categoria}
+                  </h4>
                 )}
+                <div className="space-y-4">
+                  {grupo.areas.map((area: any) => (
+                    <div
+                      key={area.id}
+                      className={`bg-brand-surface border border-brand-border rounded-2xl p-5 shadow-sm relative overflow-hidden ${
+                        !esPremium && !esAdmin && "opacity-60"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <h4 className="font-semibold text-brand-dark text-base">{area.name}</h4>
+                        
+                      </div>
+
+                      {esPremium || esAdmin ? (
+                        <div className="flex gap-2 mt-4">
+                          <Link
+                            href={`/practica/${area.id}`}
+                            className="flex-1 text-center bg-slate-100 hover:bg-slate-200 text-brand-dark text-xs font-bold px-4 py-2 rounded-xl transition-colors"
+                          >
+                            Practicar
+                          </Link>
+                          <Link
+                            href={`/simulacro/${area.id}`}
+                            className="flex-1 text-center bg-brand-primary hover:bg-brand-primaryHover text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors"
+                          >
+                            Simulacro
+                          </Link>
+                        </div>
+                      ) : (
+                        <div className="mt-4 text-xs font-bold text-slate-500 bg-slate-100 inline-flex items-center px-2.5 py-1 rounded-md">
+                          Bloqueado
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>

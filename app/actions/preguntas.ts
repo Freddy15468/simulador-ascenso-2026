@@ -21,7 +21,7 @@ async function obtenerUsuarioConCategoria() {
     throw new Error("Usuario no encontrado.");
   }
 
-  if (!usuario.categoryId) {
+  if (usuario.role !== "ADMIN" && !usuario.categoryId) {
     throw new Error("Tu cuenta no tiene una categoría/convocatoria asignada. Contacta a soporte.");
   }
 
@@ -48,7 +48,12 @@ export async function obtenerPreguntasPorArea(areaId: string, cantidad?: number)
 
   const area = await prisma.area.findUnique({ where: { id: areaId } });
 
-  if (!area || area.categoryId !== usuario.categoryId) {
+  if (!area) {
+    throw new Error("Esta área no existe.");
+  }
+
+  // El ADMIN puede acceder a cualquier área, sin importar su propia categoría.
+  if (usuario.role !== "ADMIN" && area.categoryId !== usuario.categoryId) {
     throw new Error("Esta área no existe o no pertenece a tu categoría.");
   }
 
@@ -70,7 +75,7 @@ export async function obtenerPreguntasExamenCompleto() {
   const usuario = await obtenerUsuarioConCategoria();
 
   const preguntas = await prisma.question.findMany({
-    where: { area: { categoryId: usuario.categoryId! } },
+    where: usuario.role === "ADMIN" ? {} : { area: { categoryId: usuario.categoryId! } },
   });
 
   if (preguntas.length === 0) {
@@ -88,7 +93,7 @@ export async function obtenerBancoDePreguntas() {
   const usuario = await obtenerUsuarioConCategoria();
 
   const preguntas = await prisma.question.findMany({
-    where: { area: { categoryId: usuario.categoryId! } },
+    where: usuario.role === "ADMIN" ? {} : { area: { categoryId: usuario.categoryId! } },
   });
 
   if (preguntas.length === 0) {
@@ -104,6 +109,14 @@ export async function obtenerBancoDePreguntas() {
  */
 export async function obtenerAreasDelUsuario() {
   const usuario = await obtenerUsuarioConCategoria();
+
+  if (usuario.role === "ADMIN") {
+    const areas = await prisma.area.findMany({
+      include: { _count: { select: { questions: true } }, category: true },
+      orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
+    });
+    return areas;
+  }
 
   const areas = await prisma.area.findMany({
     where: { categoryId: usuario.categoryId! },
