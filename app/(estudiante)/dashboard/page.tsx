@@ -49,18 +49,25 @@ export default async function DashboardPage() {
 
   const totalPreguntas = areas.reduce((acc, a) => acc + a._count.questions, 0);
 
+  // El "Banco de Preguntas - Ascenso de Categoría 2026" del ministerio se
+  // muestra en su propia tarjeta destacada (debajo del estado de la cuenta),
+  // no mezclado en la lista normal de áreas. Aplica para cualquier categoría.
+  const NOMBRE_BANCO_MINISTERIO = "Banco de Preguntas - Ascenso de Categoría 2026";
+  const areaBancoMinisterio = !esAdmin ? areas.find((a: any) => a.name === NOMBRE_BANCO_MINISTERIO) : undefined;
+  const areasListado = areaBancoMinisterio ? areas.filter((a: any) => a.id !== areaBancoMinisterio.id) : areas;
+
   // Si es admin, agrupamos las áreas por categoría para mostrarlas con
   // encabezados; si no, todas van en un solo grupo sin encabezado.
   const gruposDeAreas: { categoria: string | null; areas: typeof areas }[] = esAdmin
     ? Object.values(
-        areas.reduce((acc: Record<string, { categoria: string; areas: typeof areas }>, area: any) => {
+        areasListado.reduce((acc: Record<string, { categoria: string; areas: typeof areas }>, area: any) => {
           const nombreCategoria = area.category?.name ?? "Sin categoría";
           if (!acc[nombreCategoria]) acc[nombreCategoria] = { categoria: nombreCategoria, areas: [] };
           acc[nombreCategoria].areas.push(area);
           return acc;
         }, {})
       )
-    : [{ categoria: null, areas }];
+    : [{ categoria: null, areas: areasListado }];
 
   return (
     <div className="min-h-screen bg-brand-bg p-4 pb-20">
@@ -119,6 +126,43 @@ export default async function DashboardPage() {
           </div>
         )}
 
+        {/* Banco de Preguntas del Ministerio — destacado, aplica a cualquier categoría */}
+        {areaBancoMinisterio && (
+          <div
+            className={`bg-linear-to-br from-amber-500 to-orange-600 rounded-2xl p-6 text-white shadow-lg shadow-amber-500/20 mb-8 relative overflow-hidden ${
+              !esPremium && "opacity-60"
+            }`}
+          >
+            <span className="inline-block mb-2 px-2.5 py-1 bg-white/20 text-white text-[10px] font-bold uppercase tracking-wider rounded-md">
+              Oficial · Ministerio
+            </span>
+            <h3 className="font-bold text-lg mb-1.5">{areaBancoMinisterio.name}</h3>
+            <p className="text-white/90 text-xs mb-4 leading-relaxed">
+              El banco de preguntas real publicado por el ministerio para el ascenso de categoría 2026.
+            </p>
+            {esPremium ? (
+              <div className="flex gap-2">
+                <Link
+                  href={`/practica/${areaBancoMinisterio.id}`}
+                  className="flex-1 text-center bg-white/15 hover:bg-white/25 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-colors"
+                >
+                  Practicar 1 a 1
+                </Link>
+                <Link
+                  href={`/simulacro/${areaBancoMinisterio.id}`}
+                  className="flex-1 text-center bg-white text-orange-700 text-xs font-bold px-4 py-2.5 rounded-xl transition-colors"
+                >
+                  Simulacro
+                </Link>
+              </div>
+            ) : (
+              <div className="text-xs font-bold text-white/80 bg-white/15 inline-flex items-center px-2.5 py-1 rounded-md">
+                Bloqueado
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Práctica Libre y Examen Completo */}
         <div className="grid grid-cols-1 gap-4 mb-8">
           <div
@@ -128,7 +172,7 @@ export default async function DashboardPage() {
           >
             <h3 className="font-bold text-lg text-brand-dark mb-1.5">Práctica Libre</h3>
             <p className="text-brand-text text-xs mb-4 leading-relaxed">
-              Preguntas al azar de todo el banco depreguntas, una por una, con la
+              Preguntas al azar de todo el banco de preguntas, una por una, con la
               respuesta correcta al instante. Sin tiempo, sin nota — solo para repasar.
             </p>
             {esPremium ? (
