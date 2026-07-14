@@ -3,6 +3,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "../api/auth/[...nextauth]/route";
 import { prisma } from "../../lib/prisma";
+import { calcularAcceso } from "../../lib/acceso";
 
 const CANTIDAD_EXAMEN_COMPLETO = 100;
 
@@ -15,6 +16,7 @@ async function obtenerUsuarioConCategoria() {
 
   const usuario = await prisma.user.findUnique({
     where: { id: (session.user as any).id },
+    include: { subscriptions: true },
   });
 
   if (!usuario) {
@@ -23,6 +25,13 @@ async function obtenerUsuarioConCategoria() {
 
   if (usuario.role !== "ADMIN" && !usuario.categoryId) {
     throw new Error("Tu cuenta no tiene una categoría/convocatoria asignada. Contacta a soporte.");
+  }
+
+  const acceso = calcularAcceso(usuario);
+  if (!acceso.tieneAcceso) {
+    throw new Error(
+      "Tu período de prueba gratuita de 12 horas terminó. Activa tu cuenta en /comprar para seguir usando el simulador."
+    );
   }
 
   return usuario;

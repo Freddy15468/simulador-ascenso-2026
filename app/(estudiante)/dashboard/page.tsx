@@ -4,6 +4,7 @@ import Link from "next/link";
 import { prisma } from "../../../lib/prisma";
 import { authOptions } from "../../api/auth/[...nextauth]/route";
 import CerrarSesionBoton from "../../components/CerrarSesionBoton";
+import { calcularAcceso } from "../../../lib/acceso";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -26,13 +27,9 @@ export default async function DashboardPage() {
     redirect("/login?error=cuenta_compartida");
   }
 
-  const esPremium = usuario.subscriptions.some((sub) => sub.status === "APPROVED");
+  const { esAdmin, esPremium, enPrueba, horasRestantesPrueba, tieneAcceso } = calcularAcceso(usuario);
   const tienePagoPendiente = usuario.subscriptions.some((sub) => sub.status === "PENDING");
-
-  // El ADMIN ve TODAS las áreas de TODAS las categorías (para poder revisar
-  // y probar cualquier convocatoria). Un usuario normal solo ve las de su
-  // propia categoría.
-  const esAdmin = usuario.role === "ADMIN";
+  const horasRestantesRedondeadas = Math.ceil(horasRestantesPrueba);
 
   const areas = esAdmin
     ? await prisma.area.findMany({
@@ -106,6 +103,20 @@ export default async function DashboardPage() {
               Tienes acceso ilimitado a todos los simulacros y normativas de la convocatoria. ¡Mucho éxito!
             </p>
           </div>
+        ) : enPrueba ? (
+          <div className="bg-sky-600 rounded-2xl p-6 text-white shadow-lg shadow-sky-600/20 mb-8">
+            <h2 className="text-lg font-semibold mb-1">Prueba Gratuita Activa ⏱️</h2>
+            <p className="text-brand-bg/95 text-sm mb-4 leading-relaxed">
+              Tienes acceso completo por {horasRestantesRedondeadas}{" "}
+              {horasRestantesRedondeadas === 1 ? "hora" : "horas"} más. Actívate ya para no perder el acceso.
+            </p>
+            <Link
+              href="/comprar"
+              className="bg-white text-sky-700 px-5 py-2.5 rounded-xl font-bold text-sm inline-block shadow-sm"
+            >
+              Activar Ahora
+            </Link>
+          </div>
         ) : tienePagoPendiente ? (
           <div className="bg-amber-500 rounded-2xl p-6 text-white shadow-lg shadow-amber-500/20 mb-8">
             <h2 className="text-lg font-semibold mb-1">Pago en Revisión ⏳</h2>
@@ -115,9 +126,9 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <div className="bg-brand-primary rounded-2xl p-6 text-white shadow-lg shadow-brand-primary/20 mb-8">
-            <h2 className="text-lg font-semibold mb-2">Simulador Inactivo</h2>
+            <h2 className="text-lg font-semibold mb-2">Tu prueba gratuita terminó</h2>
             <p className="text-brand-bg/90 text-sm mb-5 leading-relaxed">
-              Activa tu cuenta para desbloquear el banco de preguntas completo y los exámenes oficiales.
+              Activa tu cuenta para seguir con acceso al banco de preguntas completo y los exámenes oficiales.
             </p>
             <Link
               href="/comprar"
@@ -132,7 +143,7 @@ export default async function DashboardPage() {
         {areaBancoMinisterio && (
           <div
             className={`bg-linear-to-br from-amber-500 to-orange-600 rounded-2xl p-6 text-white shadow-lg shadow-amber-500/20 mb-8 relative overflow-hidden ${
-              !esPremium && "opacity-60"
+              !tieneAcceso && "opacity-60"
             }`}
           >
             <span className="inline-block mb-2 px-2.5 py-1 bg-white/20 text-white text-[10px] font-bold uppercase tracking-wider rounded-md">
@@ -140,10 +151,9 @@ export default async function DashboardPage() {
             </span>
             <h3 className="font-bold text-lg mb-1.5">{areaBancoMinisterio.name}</h3>
             <p className="text-white/90 text-xs mb-4 leading-relaxed">
-              El banco de preguntas real publicado por el ministerio para el ascenso de categoría 2026
-              
+              El banco de preguntas real publicado por el ministerio para el ascenso de categoría 2026.
             </p>
-            {esPremium ? (
+            {tieneAcceso ? (
               <div className="flex gap-2">
                 <Link
                   href={`/practica/${areaBancoMinisterio.id}`}
@@ -170,7 +180,7 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 gap-4 mb-8">
           <div
             className={`bg-brand-surface border border-brand-border rounded-2xl p-6 shadow-sm relative overflow-hidden ${
-              !esPremium && "opacity-60"
+              !tieneAcceso && "opacity-60"
             }`}
           >
             <h3 className="font-bold text-lg text-brand-dark mb-1.5">Práctica Libre</h3>
@@ -178,7 +188,7 @@ export default async function DashboardPage() {
               Preguntas al azar de todo el banco de preguntas, una por una, con la
               respuesta correcta al instante. Sin tiempo, sin nota — solo para repasar.
             </p>
-            {esPremium ? (
+            {tieneAcceso ? (
               <Link
                 href="/practica"
                 className="bg-brand-primary hover:bg-brand-primaryHover text-white px-5 py-2.5 rounded-xl font-bold text-sm inline-block shadow-sm transition-colors"
@@ -194,7 +204,7 @@ export default async function DashboardPage() {
 
           <div
             className={`bg-brand-dark rounded-2xl p-6 text-white shadow-lg relative overflow-hidden ${
-              !esPremium && "opacity-60"
+              !tieneAcceso && "opacity-60"
             }`}
           >
             <h3 className="font-bold text-lg mb-1.5">Examen Completo</h3>
@@ -202,7 +212,7 @@ export default async function DashboardPage() {
               Simulación cronometrada de 100 preguntas mezclando todas las áreas de tu convocatoria,
               igual que el examen real de ascenso.
             </p>
-            {esPremium ? (
+            {tieneAcceso ? (
               <Link
                 href="/simulacro/completo"
                 className="bg-white text-brand-dark px-5 py-2.5 rounded-xl font-bold text-sm inline-block shadow-sm"
@@ -220,7 +230,7 @@ export default async function DashboardPage() {
         {/* Lista de Áreas reales: Simulacro completo Y práctica pregunta por pregunta, por área */}
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-brand-dark">{esAdmin ? "Todas las Áreas" : "Módulos por Área"}</h3>
-        
+       
         </div>
 
         {areas.length === 0 ? (
@@ -241,15 +251,15 @@ export default async function DashboardPage() {
                     <div
                       key={area.id}
                       className={`bg-brand-surface border border-brand-border rounded-2xl p-5 shadow-sm relative overflow-hidden ${
-                        !esPremium && !esAdmin && "opacity-60"
+                        !tieneAcceso && "opacity-60"
                       }`}
                     >
                       <div className="flex items-start justify-between">
                         <h4 className="font-semibold text-brand-dark text-base">{area.name}</h4>
-                    
+                       
                       </div>
 
-                      {esPremium || esAdmin ? (
+                      {tieneAcceso ? (
                         <div className="flex gap-2 mt-4">
                           <Link
                             href={`/practica/${area.id}`}

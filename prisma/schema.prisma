@@ -8,20 +8,23 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+
 model User {
   id              String         @id @default(cuid())
-  email           String?        @unique   // opcional ahora
-  cedula          String?        @unique   // NUEVO: identificador de login
+  email           String?        @unique
+  cedula          String?        @unique
   name            String?
-  password        String         // aquí se guarda el hash del PIN
+  password        String
   role            Role           @default(USER)
   categoryId      String?
   activeSessionId String?
-  deviceId        String?        // NUEVO: fingerprint del dispositivo autorizado
+  deviceId        String?
+  createdAt       DateTime       @default(now())   // NUEVO: para el período de prueba
   category        Category?      @relation(fields: [categoryId], references: [id])
   subscriptions   Subscription[]
   attempts        Attempt[]
 }
+
 
 
 model Category {
