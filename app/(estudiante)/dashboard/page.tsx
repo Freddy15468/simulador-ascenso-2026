@@ -250,7 +250,7 @@ export default async function DashboardPage() {
                   {grupo.areas.map((area: any) => (
                     <div
                       key={area.id}
-                      className={`bg-brand-surface border border-brand-border rounded-2xl p-5 shadow-sm relative overflow-hidden ${
+                      className={`bg-brand-border border border-brand-border rounded-2xl p-5 shadow-sm relative overflow-hidden ${
                         !tieneAcceso && "opacity-60"
                       }`}
                     >
