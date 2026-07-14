@@ -52,7 +52,7 @@ function barajar<T>(arr: T[]): T[] {
  * alguien acceda a preguntas de otra convocatoria adivinando el areaId).
  * Si no se pasa `cantidad`, devuelve TODAS las preguntas del área, barajadas.
  */
-export async function obtenerPreguntasPorArea(areaId: string, cantidad: number = CANTIDAD_EXAMEN_COMPLETO) {
+export async function obtenerPreguntasPorArea(areaId: string, cantidad?: number) {
   const usuario = await obtenerUsuarioConCategoria();
 
   const area = await prisma.area.findUnique({ where: { id: areaId } });

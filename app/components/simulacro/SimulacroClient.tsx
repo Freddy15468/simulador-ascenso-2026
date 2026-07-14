@@ -54,13 +54,15 @@ export default function SimulacroClient(props: Props) {
 
     const cargar = async () => {
       try {
-        const data =
-          props.tipo === "completo"
-            ? await obtenerPreguntasExamenCompleto()
-            : await obtenerPreguntasPorArea(props.areaId);
+        const CANTIDAD_MAXIMA_SIMULACRO = 100; // igual que el examen real, sin importar cuántas tenga el área
 
-        const tiempoInicial =
-          props.tipo === "completo" ? TIEMPO_EXAMEN_COMPLETO_SEGUNDOS : data.length * SEGUNDOS_POR_PREGUNTA;
+const data =
+  props.tipo === "completo"
+    ? await obtenerPreguntasExamenCompleto()
+    : await obtenerPreguntasPorArea(props.areaId, CANTIDAD_MAXIMA_SIMULACRO);
+
+const tiempoInicial =
+  props.tipo === "completo" ? TIEMPO_EXAMEN_COMPLETO_SEGUNDOS : data.length * SEGUNDOS_POR_PREGUNTA;
 
         setPreguntas(data);
         setTiempoTotalInicial(tiempoInicial);
