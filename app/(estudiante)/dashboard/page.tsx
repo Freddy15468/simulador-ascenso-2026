@@ -53,7 +53,9 @@ export default async function DashboardPage() {
   // muestra en su propia tarjeta destacada (debajo del estado de la cuenta),
   // no mezclado en la lista normal de áreas. Aplica para cualquier categoría.
   const NOMBRE_BANCO_MINISTERIO = "Banco de Preguntas - Ascenso de Categoría 2026";
-  const areaBancoMinisterio = !esAdmin ? areas.find((a: any) => a.name === NOMBRE_BANCO_MINISTERIO) : undefined;
+  const areaBancoMinisterio = areas.find(
+    (a: any) => a.name === NOMBRE_BANCO_MINISTERIO && a.categoryId === usuario.categoryId
+  );
   const areasListado = areaBancoMinisterio ? areas.filter((a: any) => a.id !== areaBancoMinisterio.id) : areas;
 
   // Si es admin, agrupamos las áreas por categoría para mostrarlas con
@@ -76,7 +78,7 @@ export default async function DashboardPage() {
         <div className="mb-8 mt-6 flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-brand-dark tracking-tight">
-              Hola, {usuario.name?.split(" ")[0]} 
+              Hola, {usuario.name?.split(" ")[0]} 👋
             </h1>
             <p className="text-brand-text text-sm mt-1 font-medium">Gestión 2026</p>
           </div>
@@ -99,7 +101,7 @@ export default async function DashboardPage() {
         {/* Tarjeta de Estado Dinámica */}
         {esPremium ? (
           <div className="bg-emerald-600 rounded-2xl p-6 text-white shadow-lg shadow-emerald-600/20 mb-8">
-            <h2 className="text-lg font-semibold mb-1">Cuenta Premium Activa </h2>
+            <h2 className="text-lg font-semibold mb-1">Cuenta Premium Activa 🚀</h2>
             <p className="text-brand-bg/95 text-sm leading-relaxed">
               Tienes acceso ilimitado a todos los simulacros y normativas de la convocatoria. ¡Mucho éxito!
             </p>
@@ -138,7 +140,8 @@ export default async function DashboardPage() {
             </span>
             <h3 className="font-bold text-lg mb-1.5">{areaBancoMinisterio.name}</h3>
             <p className="text-white/90 text-xs mb-4 leading-relaxed">
-              El banco de preguntas real publicado por el ministerio para el ascenso de categoría 2026.
+              El banco de preguntas real publicado por el ministerio para el ascenso de categoría 2026
+              
             </p>
             {esPremium ? (
               <div className="flex gap-2">
@@ -243,7 +246,7 @@ export default async function DashboardPage() {
                     >
                       <div className="flex items-start justify-between">
                         <h4 className="font-semibold text-brand-dark text-base">{area.name}</h4>
-                        
+                    
                       </div>
 
                       {esPremium || esAdmin ? (
