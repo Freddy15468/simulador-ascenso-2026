@@ -80,11 +80,13 @@ export default function RegistroForm({ categorias }: { categorias: Categoria[] }
               defaultValue=""
             >
               <option value="" disabled>Selecciona tu área...</option>
-              {categorias.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
+                {categorias
+                  .filter((cat) => !cat.name.startsWith("ADMIN"))
+                  .map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
             </select>
           </div>
 
